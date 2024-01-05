@@ -4,6 +4,9 @@
     "build": "next build",
     "start": "next start -p 80"
   },
+  "workspaces": [
+    "cdk"
+  ],
   "dependencies": {
     "next": "^14.0.4",
     "react": "^18.2.0",

@@ -1,0 +1,49 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and deploy
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY_NAME: mystory-repository
+          DOCKER_IMAGE_TAG: 1.0.0
+        run: |
+          DOCKER_IMAGE_NAME=${ECR_REGISTRY}/${REPOSITORY_NAME}
+          ECR_REPOSITORY=537920200235.dkr.ecr.eu-central-1.amazonaws.com/mystory-repository:${DOCKER_IMAGE_TAG}
+
+          docker build -t $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG .
+          docker tag $DOCKER_IMAGE_NAME:$DOCKER_IMAGE_TAG $ECR_REPOSITORY
+          docker push $ECR_REPOSITORY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 20.10.0
+
+      - name: Deploy AWS CDK Stack
+        run: |
+          cd cdk
+          npm ci
+          npx cdk deploy --all --require-approval never -vv
